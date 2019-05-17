@@ -42,3 +42,10 @@ Utilizaremos ICs para estimar duas métricas sobre os usuários do LastFM em ger
 1. Qual a proporção de novos artistas escutados pelos usuários
 2. Para os usuários que gostam de música muito pop (mediana_pop > 5), qual a correlação entre a popularidade mediana dos artistas escutado e a proporção dos artistas escutados que eram novos. 
 
+```{r}
+theta = lastfm %>%  
+  pull(news) %>% 
+  mean() # theta: média calculada com todos os dados
+
+theta
+```

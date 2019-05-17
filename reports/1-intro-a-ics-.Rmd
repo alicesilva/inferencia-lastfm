@@ -50,7 +50,7 @@ Como seria nossa visão dos dados se tivéssemos apenas uma amostra dos dados? `
 Se calcularmos a média do números de novos artistas escutados para três amostras de 100 elementos, teremos 3 resultados diferentes (3 $\hat{\theta}$ diferentes):
 
 ```{r}
-lastfm %>% pull(news) %>% sample(100) %>% mean()
+lastfm %>% pull(news) %>% sample(size = 100) %>% mean()
 lastfm %>% pull(news) %>% sample(100) %>% mean()
 lastfm %>% pull(news) %>% sample(100) %>% mean()
 ```
