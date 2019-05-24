@@ -50,7 +50,7 @@ lastfm_ajuste <- lastfm %>%
 glimpse(lastfm_ajuste)
 ```
 
-## Aplicando bootstrapping 
+## Aplicando bootstrapping manual
 
 ```{r}
 funcao_theta = function(df) {
@@ -86,59 +86,38 @@ reamostragens = tibble(i = 1:repeticoes) %>%
 
 reamostragens
 ```
-```{r}
-set.seed(1212)
-reamostragens %>%
-  ggplot(aes(x = theta_c_s)) +
-  geom_histogram(binwidth = .001,
-                 colour = "darkorange",
-                 fill = "white")
-
-reamostragens %>%
-  ggplot(aes(x = theta_c_s - theta_c)) +
-  geom_histogram(binwidth = .001,
-                 colour = "darkblue",
-                 fill = "white")
-```
-### Calculando o IC
 
 ```{r}
 confianca = .95
 alpha = 1 - confianca
 
-intervalo2 = reamostragens %>% 
+intervalo = reamostragens %>% 
   mutate(erro = theta_c_s - theta_c) %>% 
-  summarise(erro_i = quantile(erro, alpha / 2), 
-            erro_s = quantile(erro, 1 - alpha /2)) %>% 
+  summarise(erro_i = quantile(erro, alpha), 
+            erro_s = quantile(erro, 1 - alpha)) %>% 
   mutate(valor_i = theta_c + erro_i, 
          valor_s = theta_c + erro_s)
 
-intervalo2
+intervalo
 ```
 
-
+## Biblioteca
 ```{r}
-ggplot() +
-  geom_rect(
-    data = intervalo2,
-    aes(xmin = valor_i, xmax = valor_s),
-    ymin = -Inf,
-    ymax = Inf,
-    fill = "brown",
-    alpha = .25
-  ) +
-  geom_histogram(
-    data = reamostragens,
-    aes(theta_c_s),
-    binwidth = .001,
-    fill = "white",
-    colour = "darkgrey"
-  ) +
-  geom_vline(xintercept = theta,
-             color = "blue",
-             size = 1.2) +
-  geom_vline(xintercept = theta_c, color = "dark green") +
-  labs(title = expression("Intervalo estimado via bootstrap"))
+theta <- function(df,i) {
+    mean(
+        (df %>%
+        slice(i) %>%
+        pull(proporcao)
+    ))
+}
+booted <- boot(data = lastfm_ajuste, 
+               statistic = theta, 
+               R = 4000)
+ci = tidy(booted, 
+          conf.level = .95,
+          conf.method = "bca",
+          conf.int = TRUE)
+glimpse(ci)
 ```
 
 2. Para os usuários que gostam de música muito pop (mediana_pop > 5), qual a correlação entre a popularidade mediana dos artistas escutado e a proporção dos artistas escutados que eram novos. 
