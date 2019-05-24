@@ -1,16 +1,16 @@
 ---
-title: "Implementando ICs"
+title: "L3P2: Sua inferência no last.fm"
 author: "Alice Fernandes Silva"
 output:
-  html_document:
-    theme: readable
-    df_print: paged
-    toc: yes
   html_notebook:
     fig_width: 7
     theme: readable
     toc: yes
     toc_float: yes
+  html_document:
+    theme: readable
+    df_print: paged
+    toc: yes
 ---
 
 ```{r setup, include=FALSE, message=FALSE}
@@ -50,7 +50,7 @@ lastfm_ajuste <- lastfm %>%
 glimpse(lastfm_ajuste)
 ```
 
-## Aplicando bootstrapping manual
+### Bootstrapping manual
 
 ```{r}
 funcao_theta = function(df) {
@@ -59,13 +59,9 @@ funcao_theta = function(df) {
     mean()
 }
 
-theta = funcao_theta(lastfm_ajuste)
+theta_c = funcao_theta(lastfm_ajuste)
 
-set.seed(1212)
-amostra = lastfm_ajuste %>%  
-  sample_n(200) 
-
-theta_c = funcao_theta(amostra)
+theta_c
 ```
 
 
@@ -82,7 +78,7 @@ um_bootstrap <- function(x){
 
 # A REAMOSTRAGEM
 reamostragens = tibble(i = 1:repeticoes) %>% 
-  mutate(theta_c_s = map_dbl(i, ~ um_bootstrap(amostra)))
+  mutate(theta_c_s = map_dbl(i, ~ um_bootstrap(lastfm_ajuste)))
 
 reamostragens
 ```
@@ -101,7 +97,8 @@ intervalo = reamostragens %>%
 intervalo
 ```
 
-## Biblioteca
+### Bootstrapping pela biblioteca boot
+
 ```{r}
 theta <- function(df,i) {
     mean(
@@ -120,6 +117,9 @@ ci = tidy(booted,
 glimpse(ci)
 ```
 
+Podemos ver que o valor do theta do bootstrapping manual foi de `0.242366` e pela biblioteca boot foi `0.242366`, ou seja, foram iguais. O intervalo de confiança no primeiro modo foi de `[0.2324396,0.2523158]` e no segundo `[0.2300858,0.2542181]`.
+Portanto, com **95%** de confiança podemos afirmar que a proporção é de `0.242366` para novos artistas escutados pelos usuários.
+
 2. Para os usuários que gostam de música muito pop (mediana_pop > 5), qual a correlação entre a popularidade mediana dos artistas escutado e a proporção dos artistas escutados que eram novos. 
 
 
@@ -128,6 +128,9 @@ lastfm_filter <- lastfm %>% filter(mediana_pop > 5) %>%
     mutate(proporcao = news/(news + old), cor_pop = cor(mediana_pop, proporcao))
 glimpse(lastfm_filter)
 ```
+
+### Bootstrapping manual
+
 ```{r}
 funcao_theta = function(df) {
   df %>%
@@ -135,13 +138,9 @@ funcao_theta = function(df) {
     mean()
 }
 
-theta = funcao_theta(lastfm_filter)
+theta_c_pop = funcao_theta(lastfm_filter)
 
-set.seed(1212)
-amostra = lastfm_filter %>%  
-  sample_n(200) 
-
-theta_c = funcao_theta(amostra)
+theta_c_pop
 ```
 
 ```{r}
@@ -157,61 +156,49 @@ um_bootstrap <- function(x){
 
 # A REAMOSTRAGEM
 reamostragens = tibble(i = 1:repeticoes) %>% 
-  mutate(theta_c_s = map_dbl(i, ~ um_bootstrap(amostra)))
+  mutate(theta_c_s_pop = map_dbl(i, ~ um_bootstrap(lastfm_filter)))
 
 reamostragens
 ```
 
 ```{r}
-set.seed(1212)
-reamostragens %>%
-  ggplot(aes(x = theta_c_s)) +
-  geom_histogram(binwidth = .001,
-                 colour = "darkorange",
-                 fill = "white")
-
-reamostragens %>%
-  ggplot(aes(x = theta_c_s - theta_c)) +
-  geom_histogram(binwidth =.001,
-                 colour = "darkblue",
-                 fill = "white")
-```
-### Calculando o IC
-
-```{r}
 confianca = .95
 alpha = 1 - confianca
 
-intervalo2 = reamostragens %>% 
-  mutate(erro = theta_c_s - theta_c) %>% 
+intervalo = reamostragens %>% 
+  mutate(erro = theta_c_s_pop - theta_c_pop) %>% 
   summarise(erro_i = quantile(erro, alpha / 2), 
             erro_s = quantile(erro, 1 - alpha /2)) %>% 
-  mutate(valor_i = theta_c + erro_i, 
-         valor_s = theta_c + erro_s)
+  mutate(valor_i = theta_c_pop + erro_i, 
+         valor_s = theta_c_pop + erro_s)
 
-intervalo2
+intervalo
 ```
+
+### Bootstrapping pela biblioteca boot
 
 ```{r}
-ggplot() +
-  geom_rect(
-    data = intervalo2,
-    aes(xmin = valor_i, xmax = valor_s),
-    ymin = -Inf,
-    ymax = Inf,
-    fill = "brown",
-    alpha = .25
-  ) +
-  geom_histogram(
-    data = reamostragens,
-    aes(theta_c_s),
-    binwidth = .001,
-    fill = "white",
-    colour = "darkgrey"
-  ) +
-  geom_vline(xintercept = theta,
-             color = "blue",
-             size = 1.2) +
-  geom_vline(xintercept = theta_c, color = "dark green") +
-  labs(title = expression("Intervalo estimado via bootstrap"))
+theta_pop <- function(df,i) {
+     df = df %>%
+        filter(mediana_pop > 5) %>%
+        slice(i) %>%
+        mutate(prop = news/(news + old),
+               cor = cor(mediana_pop, prop))
+    mean(df$cor)
+}
+booted_pop <- boot(data = lastfm, 
+               statistic = theta_pop, 
+               R = 4000)
+ci = tidy(booted_pop, 
+          conf.level = .95,
+          conf.method = "bca",
+          conf.int = TRUE)
+glimpse(ci)
 ```
+
+
+Podemos ver que, o valor do theta do bootstrapping manual foi de `-0.05679804` e pela biblioteca boot foi `-0.05679804`. O intervalo de confiança no primeiro modo foi de `[-0.05679804,-0.05679804]` e no segundo `[-0.1883234,0.06283954]`.
+
+Logo, com **95%** de confiança podemos afirmar que a correlação é de `-0.05679804` entre a popularidade mediana dos artistas escutado e a proporção dos artistas escutados que eram novos e é negativa e fraca.
+
+Além disso, vale ressaltar que os intervalo de confiança incluem o zero então essa relação pode existir ou não.
